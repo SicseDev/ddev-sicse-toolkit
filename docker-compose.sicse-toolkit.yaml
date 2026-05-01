@@ -1,8 +1,8 @@
 #ddev-generated
 services:
-  addon-template:
-    container_name: ddev-${DDEV_SITENAME}-addon-template
-    image: ${ADDON_TEMPLATE_DOCKER_IMAGE:-ddev/ddev-utilities:latest}
+  sicse-toolkit:
+    container_name: ddev-${DDEV_SITENAME}-sicse-toolkit
+    image: ${SICSE_TOOLKIT_DOCKER_IMAGE:-ddev/ddev-utilities:latest}
     command: tail -f /dev/null
     restart: "no"
     # These labels ensure this service is discoverable by DDEV.
