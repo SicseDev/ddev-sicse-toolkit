@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Setup the local development environment
+## Usage: init-dev
+## Example: ddev init-dev\nddev init-dev --skip-db\nddev init-dev --skip-theme\nddev init-dev --skip-config\nddev init-dev --skip-db --skip-config
+## Flags: [{"Name":"skip-db","Usage":"Skips importing the database"},{"Name":"skip-theme","Usage":"Skips building the theme"},{"Name":"skip-config","Usage":"Skips syncing configuration"}]
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+check_composer
+
+SKIP_DB=false
+SKIP_THEME=false
+SKIP_CONFIG=false
+
+for arg in "$@"; do
+  case ${arg} in
+    --skip-db)     SKIP_DB=true ;;
+    --skip-theme)  SKIP_THEME=true ;;
+    --skip-config) SKIP_CONFIG=true ;;
+  esac
+done
+
+START_TIME=$(date +%s)
+
+print_header "Initialising local development environment"
+
+echo ""
+print_step 1 "Installing Composer dependencies"
+if composer install; then
+  print_success "Composer dependencies installed"
+else
+  fail "Failed to install Composer dependencies"
+fi
+
+echo ""
+if [ "${SKIP_THEME}" = false ]; then
+  print_step 2 "Building theme assets"
+  if "${COMMANDS_DIR}/theme-build"; then
+    print_success "Theme assets built"
+  else
+    fail "Failed to build theme assets"
+  fi
+else
+  print_step 2 "Skipping theme build"
+fi
+
+echo ""
+if [ "${SKIP_DB}" = false ]; then
+  print_step 3 "Importing development database"
+  if "${COMMANDS_DIR}/database-import-dev"; then
+    print_success "Database imported"
+  else
+    fail "Failed to import database"
+  fi
+else
+  print_step 3 "Skipping database import"
+fi
+
+echo ""
+if [ "${SKIP_CONFIG}" = false ]; then
+  print_step 4 "Syncing configuration"
+  if "${COMMANDS_DIR}/config-sync"; then
+    print_success "Configuration synced"
+  else
+    fail "Failed to sync configuration"
+  fi
+else
+  print_step 4 "Skipping configuration sync"
+fi
+
+print_footer "Development environment ready" "${START_TIME}"
