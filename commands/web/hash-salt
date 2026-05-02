@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Generate a random string suitable for use as a hash salt
+## Usage: hash-salt
+## Example: "ddev hash-salt"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+check_drush
+
+print_info "Generating hash salt..."
+
+HASH_SALT=$(drush php:eval \
+  'echo \Drupal\Component\Utility\Crypt::randomBytesBase64(55) . "\n";' \
+  2>/dev/null)
+
+if [ -z "${HASH_SALT}" ]; then
+  fail "Failed to generate hash salt"
+fi
+
+print_success "Hash salt generated:"
+echo ""
+echo "${HASH_SALT}"
