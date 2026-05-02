@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Watch and recompile theme assets on changes
+## Usage: theme-watch [theme-name]
+## Example: ddev theme-watch (watches first theme with a watch script)\nddev theme-watch mytheme (watches specific theme)
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+check_npm
+
+THEMES_BASE_DIR="${WEB_ROOT}/web/themes/custom"
+
+if [ ! -d "${THEMES_BASE_DIR}" ]; then
+  fail "Custom themes directory does not exist: ${THEMES_BASE_DIR}"
+fi
+
+# Return the name of the first theme that declares a "watch" npm script.
+find_theme_with_watch() {
+  for theme_dir in "${THEMES_BASE_DIR}"/*; do
+    if [ -d "${theme_dir}" ] && [ -f "${theme_dir}/package.json" ]; then
+      if grep -q '"watch"' "${theme_dir}/package.json"; then
+        basename "${theme_dir}"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+if [ -n "${1:-}" ]; then
+  THEME="${1}"
+else
+  THEME=$(find_theme_with_watch) || fail "No theme with a 'watch' script found in ${THEMES_BASE_DIR}"
+  print_warning "No theme specified, using: ${THEME}"
+fi
+
+THEME_DIR="${THEMES_BASE_DIR}/${THEME}"
+
+if [ ! -d "${THEME_DIR}" ]; then
+  fail "Theme directory does not exist: ${THEME_DIR}"
+fi
+
+cd "${THEME_DIR}" || fail "Cannot access theme directory: ${THEME_DIR}"
+
+if [ ! -f "package.json" ]; then
+  fail "package.json not found in ${THEME_DIR}"
+fi
+
+if ! npm run 2>/dev/null | grep -q "watch"; then
+  print_warning "'watch' script not found in package.json. Available scripts:"
+  npm run
+  exit 1
+fi
+
+print_success "Watching theme: ${THEME}"
+print_detail "Directory" "${THEME_DIR}"
+print_warning "Press Ctrl+C to stop watching"
+echo ""
+
+npm run watch
