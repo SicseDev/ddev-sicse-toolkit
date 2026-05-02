@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Import local development database
+## Usage: database-import-dev
+## Example: "ddev database-import-dev"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+DB_FILE="${WEB_ROOT}/config/build/database.sql"
+
+check_drush
+
+if [ ! -f "${DB_FILE}" ]; then
+  fail "Database file not found: ${DB_FILE}"
+fi
+
+if [ ! -r "${DB_FILE}" ]; then
+  fail "Cannot read database file: ${DB_FILE}"
+fi
+
+# Warn when the file does not look like a mysqldump output. The confirm
+# allows importing non-standard SQL files if the operator knows what they
+# are doing.
+if ! verify_backup "${DB_FILE}"; then
+  confirm "Continue importing anyway?"
+fi
+
+print_info "Starting database import..."
+print_detail "File" "${DB_FILE}"
+print_detail "Size" "$(du -h "${DB_FILE}" | cut -f1)"
+echo ""
+
+print_info "Dropping existing database tables..."
+if ! drush sql:drop -y; then
+  fail "Failed to drop database tables"
+fi
+
+print_info "Importing development database..."
+if ! drush sql:cli < "${DB_FILE}"; then
+  fail "Database import failed"
+fi
+
+print_success "Database import complete"
