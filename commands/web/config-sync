@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Apply all configuration changes, updates, and clear cache
+## Usage: config-sync [environment]
+## Example: "ddev config-sync" or "ddev config-sync @acc" or "ddev config-sync @prod"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+# Parse environment argument and normalise to @alias form.
+ENVIRONMENT="${1:-@self}"
+if [[ ! "${ENVIRONMENT}" =~ ^@ ]]; then
+  ENVIRONMENT="@${ENVIRONMENT}"
+fi
+
+ENV_DISPLAY="${ENVIRONMENT#@}"
+
+check_drush
+if [[ "${ENVIRONMENT}" != "@self" ]]; then
+  check_ssh_agent
+  check_drush_alias "${ENV_DISPLAY}"
+fi
+
+START_TIME=$(date +%s)
+
+print_header "Configuration synchronisation for ${ENV_DISPLAY}"
+
+echo ""
+print_step 1 "Clearing cache"
+if drush "${ENVIRONMENT}" cache:rebuild; then
+  print_success "Cache cleared"
+else
+  fail "Failed to clear cache"
+fi
+
+echo ""
+print_step 2 "Running database updates"
+if drush "${ENVIRONMENT}" updatedb -y --no-cache-clear; then
+  print_success "Database updates applied"
+else
+  fail "Failed to apply database updates"
+fi
+
+echo ""
+print_step 3 "Rebuilding cache after database updates"
+if drush "${ENVIRONMENT}" cache:rebuild; then
+  print_success "Cache rebuilt"
+else
+  fail "Failed to rebuild cache"
+fi
+
+echo ""
+print_step 4 "Importing configuration"
+if drush "${ENVIRONMENT}" config:import -y; then
+  print_success "Configuration imported"
+else
+  fail "Failed to import configuration"
+fi
+
+echo ""
+if drush "${ENVIRONMENT}" pm:list --status=enabled --filter=config_split \
+    --format=list 2>/dev/null | grep -q config_split; then
+  print_step 5 "Importing configuration (second pass for config split)"
+  if drush "${ENVIRONMENT}" config:import -y; then
+    print_success "Configuration imported (second pass)"
+  else
+    fail "Failed to import configuration (second pass)"
+  fi
+else
+  print_step 5 "Skipping second config import (config_split not enabled)"
+fi
+
+echo ""
+print_step 6 "Applying content updates"
+if drush "${ENVIRONMENT}" deploy:hook -y; then
+  print_success "Content updates applied"
+else
+  fail "Failed to apply content updates"
+fi
+
+echo ""
+print_step 7 "Updating translations"
+if drush "${ENVIRONMENT}" locale:check 2>/dev/null \
+    && drush "${ENVIRONMENT}" locale:update 2>/dev/null; then
+  print_success "Translations updated"
+else
+  print_warning "No translation updates available or locale commands unavailable"
+fi
+
+echo ""
+print_step 8 "Running cron"
+if drush "${ENVIRONMENT}" cron; then
+  print_success "Cron executed"
+else
+  fail "Failed to execute cron"
+fi
+
+echo ""
+print_step 9 "Final cache rebuild"
+if drush "${ENVIRONMENT}" cache:rebuild; then
+  print_success "Cache rebuilt"
+else
+  fail "Failed to rebuild cache"
+fi
+
+print_footer "Configuration sync for ${ENV_DISPLAY} complete" "${START_TIME}"
