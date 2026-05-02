@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Build theme assets (CSS/JS) using NPM
+## Usage: theme-build [theme-name]
+## Example: "ddev theme-build" (builds all themes)
+## Example: "ddev theme-build mytheme" (builds specific theme)
+
+# Intentionally no -e: failures are accumulated per-theme and reported at the
+# end so that a single bad theme does not skip the remaining ones.
+set -uo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+check_npm
+
+THEME_ARG="${1:-}"
+THEMES_DIR="${WEB_ROOT}/web/themes/custom"
+failed_themes=()
+
+if [ ! -d "${THEMES_DIR}" ]; then
+  fail "Custom themes directory does not exist: ${THEMES_DIR}"
+fi
+
+# Build a single theme directory.
+# Usage: build_theme /path/to/theme
+build_theme() {
+  local theme_dir="${1}"
+  local theme_name
+  theme_name=$(basename "${theme_dir}")
+
+  echo ""
+  print_section "Building theme: ${theme_name}"
+
+  if [ ! -f "${theme_dir}/package.json" ]; then
+    print_warning "Skipping ${theme_name}: no package.json"
+    return 0
+  fi
+
+  (
+    cd "${theme_dir}" || { print_error "Failed to enter ${theme_dir}"; exit 1; }
+
+    start_time=$(date +%s)
+
+    print_info "Running npm install in ${theme_name}..."
+    if ! npm install --loglevel=error; then
+      print_error "npm install failed for ${theme_name}"
+      exit 1
+    fi
+
+    print_info "Running npm run build in ${theme_name}..."
+    if ! npm run build --loglevel=error; then
+      print_error "npm run build failed for ${theme_name}"
+      exit 1
+    fi
+
+    duration=$(( $(date +%s) - start_time ))
+    print_success "Finished building ${theme_name} in ${duration}s"
+  )
+}
+
+if [ -n "${THEME_ARG}" ]; then
+  THEME_DIR="${THEMES_DIR}/${THEME_ARG}"
+  if [ ! -d "${THEME_DIR}" ]; then
+    fail "Theme directory does not exist: ${THEME_DIR}"
+  fi
+  THEMES=("${THEME_DIR}")
+else
+  THEMES=()
+  for d in "${THEMES_DIR}"/*; do
+    [ -d "${d}" ] || continue
+    THEMES+=("${d}")
+  done
+fi
+
+if [ "${#THEMES[@]}" -eq 0 ]; then
+  fail "No themes found in ${THEMES_DIR}"
+fi
+
+for theme_dir in "${THEMES[@]}"; do
+  theme_name=$(basename "${theme_dir}")
+  build_theme "${theme_dir}" || failed_themes+=("${theme_name}")
+done
+
+echo ""
+print_separator
+if [ "${#failed_themes[@]}" -eq 0 ]; then
+  print_success "All themes built successfully"
+  exit 0
+else
+  print_error "Failed to build ${#failed_themes[@]} theme(s):"
+  for failed_theme in "${failed_themes[@]}"; do
+    echo -e "${RED}  - ${failed_theme}${NC}"
+  done
+  exit 1
+fi
