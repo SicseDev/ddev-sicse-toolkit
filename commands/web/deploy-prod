@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Deploy to production environment
+## Usage: deploy-prod
+## Example: "ddev deploy-prod"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/deploy-lib.sh
+
+print_header "Deploying to production environment"
+print_warning "WARNING: This will deploy to PRODUCTION!"
+echo ""
+
+# Require an explicit phrase to prevent accidental deployments.
+read -r -p "Type 'deploy to production' to continue: " confirm_phrase
+if [[ "${confirm_phrase}" != "deploy to production" ]]; then
+  print_warning "Deployment cancelled."
+  exit 0
+fi
+echo ""
+
+# Preflight checks.
+check_ssh_agent
+check_drush
+check_drush_alias prod
+
+# Per-second countdown gives the operator a final chance to abort.
+countdown 5
+echo ""
+
+START_TIME=$(date +%s)
+TIMESTAMP=$(date +%Y%m%dT%H%M%S)
+
+log_deployment "prod" "deploy-prod" "started"
+
+# Step 1: Create a pre-deployment backup for rollback purposes.
+print_step 1 "Creating pre-deployment database backup"
+log_deployment "prod" "backup:pre-deployment" "started"
+
+BACKUP_FILE="${WEB_ROOT}/database_exports/${DDEV_SITENAME}_prod_pre_${TIMESTAMP}.sql"
+
+if deploy_database_dump "prod" "prod" "${BACKUP_FILE}"; then
+  print_success "Pre-deployment backup saved"
+  print_detail "Location" "${BACKUP_FILE}"
+  log_deployment "prod" "backup:pre-deployment" "success - ${BACKUP_FILE}"
+else
+  log_deployment "prod" "backup:pre-deployment" "failed"
+  log_deployment "prod" "deploy-prod" "failed (backup verification)"
+  fail "Backup verification failed — aborting for safety"
+fi
+
+# Steps 2–7: Standard deployment (composer, theme, maintenance, code, config).
+deploy_execute "prod" 2 || {
+  echo ""
+  print_error "DEPLOYMENT FAILED! Maintenance mode may still be active."
+  print_detail "Pre-deployment backup" "${BACKUP_FILE}"
+  log_deployment "prod" "deploy-prod" "failed"
+  exit 1
+}
+
+# Step 8: Export a clean post-deployment database snapshot for local dev.
+echo ""
+print_step 8 "Creating post-deployment database snapshot for development"
+log_deployment "prod" "database:export-dev" "started"
+
+if "${COMMANDS_DIR}/database-export-prod"; then
+  log_deployment "prod" "database:export-dev" \
+    "success - config/build/database.sql"
+else
+  print_warning "Development database snapshot creation failed (non-fatal)"
+  log_deployment "prod" "database:export-dev" "failed"
+fi
+
+log_deployment "prod" "deploy-prod" "completed in $(( $(date +%s) - START_TIME ))s"
+
+print_footer "Production deployment complete" "${START_TIME}"
+echo ""
+print_info "📋 Summary:"
+print_detail "- Pre-deployment backup" "${BACKUP_FILE}"
+print_detail "- Development database" "config/build/database.sql"
