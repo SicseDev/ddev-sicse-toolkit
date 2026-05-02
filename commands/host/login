@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Generate a one-time login link and open it in a browser
+## Usage: login [username]
+## Example: ddev login (to login as user ID 1)\nddev login admin (to login as user 'admin')
+
+set -euo pipefail
+
+# shellcheck source=../../lib/common.sh
+source "${DDEV_APPROOT}/.ddev/lib/common.sh"
+
+USERNAME="${1:-}"
+
+# Generate login link (-oE works on both GNU grep and macOS BSD grep).
+print_info "Generating one-time login link..."
+if [ -n "${USERNAME}" ]; then
+  LOGIN_URL=$(ddev drush user:login "--name=${USERNAME}" 2>/dev/null \
+    | grep -oE 'https?://[^[:space:]]+')
+else
+  LOGIN_URL=$(ddev drush user:login 2>/dev/null \
+    | grep -oE 'https?://[^[:space:]]+')
+fi
+
+if [ -z "${LOGIN_URL}" ]; then
+  fail "Failed to generate login URL"
+fi
+
+print_success "Login URL generated"
+print_detail "URL" "${LOGIN_URL}"
+echo ""
+
+# Open the URL in the first available browser launcher.
+open_browser() {
+  local url="${1}"
+  local firefox_dev_win="/mnt/c/Program Files/Firefox Developer Edition/firefox.exe"
+
+  if [ -f "${firefox_dev_win}" ]; then
+    print_info "Opening in Firefox Developer Edition..."
+    # Launch via cmd.exe so Firefox gets a proper Windows shell token;
+    # calling the .exe directly from WSL triggers NS_ERROR_FAILURE.
+    cmd.exe /c start "" "$(wslpath -w "${firefox_dev_win}")" "${url}" 2>/dev/null
+  elif command -v xdg-open > /dev/null 2>&1; then
+    print_info "Opening in default browser (xdg-open)..."
+    xdg-open "${url}" &
+  elif command -v wslview > /dev/null 2>&1; then
+    print_info "Opening in default browser (wslview)..."
+    wslview "${url}" &
+  elif command -v open > /dev/null 2>&1; then
+    print_info "Opening in default browser (open)..."
+    open "${url}" &
+  else
+    print_warning "No browser launcher found. Please open the URL manually."
+    return
+  fi
+
+  print_success "Browser launched"
+}
+
+open_browser "${LOGIN_URL}"
