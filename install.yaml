@@ -1,6 +1,20 @@
 name: sicse-toolkit
 
 project_files:
-  - docker-compose.sicse-toolkit.yaml
+  - commands/host/login
+  - commands/web/apply-updates
+  - commands/web/config-sync
+  - commands/web/database-export-prod
+  - commands/web/database-import-dev
+  - commands/web/deploy-acc
+  - commands/web/deploy-prod
+  - commands/web/hash-salt
+  - commands/web/init-dev
+  - commands/web/theme-build
+  - commands/web/theme-update
+  - commands/web/theme-watch
+  - commands/web/translations-extract
+  - lib/common.sh
+  - lib/deploy-lib.sh
 
 ddev_version_constraint: '>= v1.24.10'
