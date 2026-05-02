@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Apply updates and export configuration changes
+## Usage: apply-updates
+## Example: "ddev apply-updates"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+check_composer
+check_drush
+
+START_TIME=$(date +%s)
+
+print_header "Applying updates and exporting configuration"
+print_warning "This will update Composer packages (Drupal core, modules, themes)."
+confirm "Continue?"
+
+echo ""
+print_step 1 "Initialising development environment"
+if "${COMMANDS_DIR}/init-dev"; then
+  print_success "Development environment initialised"
+else
+  fail "Failed to initialise development environment"
+fi
+
+echo ""
+print_step 2 "Updating Composer packages"
+if composer update --with-all-dependencies; then
+  print_success "Composer packages updated"
+else
+  fail "Failed to update Composer packages"
+fi
+
+echo ""
+print_step 3 "Rebuilding Drupal's cache"
+if drush cache:rebuild; then
+  print_success "Cache rebuilt"
+else
+  fail "Failed to rebuild cache"
+fi
+
+echo ""
+print_step 4 "Running Drupal database updates"
+if drush updatedb -y --no-cache-clear; then
+  print_success "Database updates applied"
+else
+  fail "Failed to apply database updates"
+fi
+
+echo ""
+print_step 5 "Rebuilding cache after database updates"
+if drush cache:rebuild; then
+  print_success "Cache rebuilt"
+else
+  fail "Failed to rebuild cache"
+fi
+
+echo ""
+print_step 6 "Exporting Drupal's configuration"
+if drush config:export -y; then
+  print_success "Configuration exported"
+else
+  fail "Failed to export configuration"
+fi
+
+echo ""
+print_step 7 "Updating theme packages"
+if "${COMMANDS_DIR}/theme-update"; then
+  print_success "Theme packages updated"
+else
+  fail "Failed to update theme packages"
+fi
+
+echo ""
+print_step 8 "Rebuilding theme"
+if "${COMMANDS_DIR}/theme-build"; then
+  print_success "Theme rebuilt"
+else
+  fail "Failed to rebuild theme"
+fi
+
+print_footer "Updates applied and configuration exported" "${START_TIME}"
+print_tip "Review git diff to see configuration changes before committing."
