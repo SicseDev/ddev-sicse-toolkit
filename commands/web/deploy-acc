@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Deploy to acceptance environment
+## Usage: deploy-acc
+## Example: "ddev deploy-acc"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/deploy-lib.sh
+
+START_TIME=$(date +%s)
+TIMESTAMP=$(date +%Y%m%dT%H%M%S)
+
+print_header "Deploying to acceptance environment"
+echo ""
+
+# Preflight checks.
+check_ssh_agent
+check_drush
+# @prod alias is needed for the database and file syncs in steps 1–2,
+# even though code is ultimately deployed to @acc.
+check_drush_alias prod
+check_drush_alias acc
+
+log_deployment "acc" "deploy-acc" "started"
+
+# Step 1: Synchronise database from production.
+print_step 1 "Synchronising production database to acceptance"
+log_deployment "acc" "database:sync-from-prod" "started"
+
+BACKUP_FILE="${WEB_ROOT}/database_exports/${DDEV_SITENAME}_prod_${TIMESTAMP}.sql"
+
+if deploy_database_dump "acc" "prod" "${BACKUP_FILE}"; then
+  print_info "  Importing dump into @acc..."
+  log_deployment "acc" "database:import-to-acc" "started"
+  drush @acc sql:drop -y
+  drush @acc sql:cli < "${BACKUP_FILE}"
+  print_success "Database synchronised"
+  log_deployment "acc" "database:import-to-acc" "success"
+  log_deployment "acc" "database:sync-from-prod" "success"
+else
+  log_deployment "acc" "database:sync-from-prod" "failed"
+  log_deployment "acc" "deploy-acc" "failed"
+  fail "Database dump failed — aborting"
+fi
+
+# Step 2: Synchronise files from production.
+echo ""
+print_step 2 "Syncing files from @prod to @acc"
+log_deployment "acc" "files:sync-from-prod" "started"
+
+mkdir -p "${WEB_ROOT}/web/sites/default/files"
+drush rsync -y @prod:web/sites/default/files/ @self:web/sites/default/files/ \
+  -- --delete --force --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r
+drush rsync -y @self:web/sites/default/files/ @acc:web/sites/default/files/ \
+  -- --delete --force --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r
+
+print_success "Files synchronised"
+log_deployment "acc" "files:sync-from-prod" "success"
+
+# Steps 3–8: Standard deployment (composer, theme, maintenance, code, config).
+deploy_execute "acc" 3 || {
+  log_deployment "acc" "deploy-acc" "failed"
+  exit 1
+}
+
+log_deployment "acc" "deploy-acc" "completed in $(( $(date +%s) - START_TIME ))s"
+
+print_footer "Acceptance deployment complete" "${START_TIME}"
+echo ""
+print_info "📋 Summary:"
+print_detail "- Database backup" "${BACKUP_FILE}"
