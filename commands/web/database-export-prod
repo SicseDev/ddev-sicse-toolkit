@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Export the production database to config/build/database.sql
+## Usage: database-export-prod
+## Example: "ddev database-export-prod"
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+DB_FILE="${WEB_ROOT}/config/build/database.sql"
+DB_DIR="$(dirname "${DB_FILE}")"
+
+check_ssh_agent
+check_drush
+check_drush_alias prod
+
+mkdir -p "${DB_DIR}"
+
+print_info "Exporting production database..."
+if ! drush @prod sql:dump \
+    --structure-tables-key=common \
+    --extra-dump='--single-transaction=false --no-tablespaces' \
+    > "${DB_FILE}"; then
+  rm -f "${DB_FILE}"
+  fail "Database export failed"
+fi
+
+if ! verify_backup "${DB_FILE}"; then
+  rm -f "${DB_FILE}"
+  fail "Database export verification failed"
+fi
+
+print_detail "Location" "${DB_FILE}"
+print_detail "File size" "$(du -h "${DB_FILE}" | cut -f1)"
