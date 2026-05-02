@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+
+## #ddev-generated: If you want to edit and own this file, remove this line.
+## Description: Extract translation templates from custom modules or themes
+## Usage: translations-extract
+## Example: ddev translations-extract --module=my_module\nddev translations-extract --module=my_module --language=en\nddev translations-extract --theme=my_theme
+## Flags: [{"Name":"module","Shorthand":"m","Usage":"Name of the custom module to extract translations from","Type":"string"},{"Name":"theme","Shorthand":"t","Usage":"Name of the custom theme to extract translations from","Type":"string"},{"Name":"language","Shorthand":"l","Usage":"Language code for translation extraction","Type":"string","DefValue":"nl"}]
+
+set -euo pipefail
+
+source /mnt/ddev_config/lib/common.sh
+
+POT_FILE="${WEB_ROOT}/web/general.pot"
+MODULE=""
+THEME=""
+LANGUAGE="nl"
+
+cleanup() {
+  rm -f "${POT_FILE}" 2>/dev/null || true
+}
+trap 'cleanup' EXIT
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --module=*|-m=*)  MODULE="${1#*=}";  shift ;;
+      --module|-m)      MODULE="${2}";     shift 2 ;;
+      --theme=*|-t=*)   THEME="${1#*=}";   shift ;;
+      --theme|-t)       THEME="${2}";      shift 2 ;;
+      --language=*|-l=*) LANGUAGE="${1#*=}"; shift ;;
+      --language|-l)    LANGUAGE="${2}";   shift 2 ;;
+      *) print_warning "Unknown argument: ${1}"; shift ;;
+    esac
+  done
+}
+
+validate_inputs() {
+  if [ -z "${MODULE}" ] && [ -z "${THEME}" ]; then
+    fail "Specify either --module=MODULE_NAME or --theme=THEME_NAME"
+  fi
+  if [ -n "${MODULE}" ] && [ -n "${THEME}" ]; then
+    fail "Cannot specify both --module and --theme"
+  fi
+
+  if ! [[ "${LANGUAGE}" =~ ^[a-z]{2,3}(_[A-Z]{2})?$ ]]; then
+    fail "Invalid language code '${LANGUAGE}'. Expected format: 'nl', 'de', 'en_US'."
+  fi
+
+  if [ -n "${MODULE}" ]; then
+    EXTENSION_TYPE="Module"
+    EXTENSION_NAME="${MODULE}"
+    EXTENSION_ARG="--modules=${MODULE}"
+    EXTENSION_DIR="${WEB_ROOT}/web/modules/custom/${MODULE}"
+    TRANSLATION_FILE="${EXTENSION_DIR}/translations/${MODULE}.${LANGUAGE}.po"
+  else
+    EXTENSION_TYPE="Theme"
+    EXTENSION_NAME="${THEME}"
+    EXTENSION_ARG="--themes=${THEME}"
+    EXTENSION_DIR="${WEB_ROOT}/web/themes/custom/${THEME}"
+    TRANSLATION_FILE="${EXTENSION_DIR}/translations/${THEME}.${LANGUAGE}.po"
+  fi
+
+  if [ ! -d "${EXTENSION_DIR}" ]; then
+    fail "${EXTENSION_TYPE} directory does not exist: ${EXTENSION_DIR}"
+  fi
+}
+
+check_enabled() {
+  local extension_type="${1}"
+  local extension_name="${2}"
+  local enabled_check
+  enabled_check=$(drush pm:list \
+    --status=enabled \
+    --type="${extension_type,,}" \
+    --filter="${extension_name}" \
+    --no-core \
+    --format=list 2>/dev/null || true)
+
+  if [ -z "${enabled_check}" ]; then
+    print_warning "${extension_type} '${extension_name}' does not appear to be enabled"
+    confirm "Continue anyway?"
+  fi
+}
+
+ensure_translations_dir() {
+  mkdir -p "${EXTENSION_DIR}/translations"
+}
+
+create_htaccess() {
+  local translations_dir="${1}"
+  local ht_file="${translations_dir}/.htaccess"
+
+  if [ -f "${ht_file}" ]; then
+    print_success ".htaccess already exists"
+    return 0
+  fi
+
+  print_warning "No .htaccess in ${translations_dir}"
+
+  # Prefer Drupal's FileSecurity helper for a canonical result.
+  if drush php:eval "
+    \$directory = '${translations_dir}';
+    try {
+      \Drupal\Component\FileSecurity\FileSecurity::writeHtaccess(\$directory);
+      echo 'OK';
+    } catch (\\Throwable \$e) {
+      echo 'FAILED';
+    }
+  " 2>/dev/null | grep -q 'OK'; then
+    print_success "Created .htaccess using Drupal's FileSecurity"
+    return 0
+  fi
+
+  # Fallback: write a minimal deny-all .htaccess.
+  cat > "${ht_file}" <<'HT'
+# Deny access to translations directory for web users.
+Options -Indexes
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Deny from all
+</IfModule>
+HT
+  chmod 0644 "${ht_file}" || true
+
+  if [ -f "${ht_file}" ]; then
+    print_warning "Created fallback .htaccess — please verify its contents"
+  else
+    fail "Failed to create .htaccess"
+  fi
+}
+
+run_extraction() {
+  print_info "Rebuilding cache..."
+  drush cache:rebuild
+
+  print_info "Updating translations..."
+  drush locale:check 2>/dev/null || print_warning "locale:check unavailable"
+  drush locale:update 2>/dev/null || print_warning "locale:update unavailable"
+
+  print_info "Extracting translations for language: ${LANGUAGE}..."
+  if ! drush potx --api=8 --language="${LANGUAGE}" --translations "${EXTENSION_ARG}"; then
+    fail "Failed to extract translations"
+  fi
+
+  if [ ! -f "${POT_FILE}" ]; then
+    fail "Translation file was not generated at ${POT_FILE}"
+  fi
+}
+
+move_pot_to_translation() {
+  print_info "Moving translation file..."
+  mv -f "${POT_FILE}" "${TRANSLATION_FILE}"
+}
+
+verify_translation_file() {
+  if [ ! -s "${TRANSLATION_FILE}" ] || ! grep -q "msgid" "${TRANSLATION_FILE}"; then
+    fail "Translation file appears empty or invalid: ${TRANSLATION_FILE}"
+  fi
+
+  print_success "Translation template extracted successfully"
+  print_detail "Location" "${TRANSLATION_FILE}"
+  print_detail "Language" "${LANGUAGE}"
+  print_detail "${EXTENSION_TYPE}" "${EXTENSION_NAME}"
+}
+
+check_atd_module() {
+  local atd_check
+  atd_check=$(drush pm:list --status=enabled --filter="atd" --no-core \
+    --format=list 2>/dev/null || true)
+
+  if [ -z "${atd_check}" ]; then
+    echo ""
+    print_warning "The Automatic Translation Template Discovery (ATD) module is not installed"
+    echo ""
+    cat <<INFO
+The ATD module makes custom translations automatically discoverable by Drupal.
+Without it, add the following to ${EXTENSION_NAME}.info.yml:
+
+  interface translation project: ${EXTENSION_NAME}
+  interface translation server pattern: web/${EXTENSION_TYPE,,}s/custom/${EXTENSION_NAME}/translations/%project.%language.po
+
+More info: https://www.drupal.org/project/atd
+INFO
+    echo ""
+    read -r -p "Press Enter to continue..."
+  fi
+}
+
+main() {
+  local start_time
+  start_time=$(date +%s)
+
+  parse_args "$@"
+  validate_inputs
+
+  print_header "Extracting translations for ${EXTENSION_TYPE,,} '${EXTENSION_NAME}' (${LANGUAGE})"
+
+  check_enabled "${EXTENSION_TYPE}" "${EXTENSION_NAME}"
+  ensure_translations_dir
+  create_htaccess "${EXTENSION_DIR}/translations"
+  run_extraction
+  move_pot_to_translation
+  verify_translation_file
+  check_atd_module
+
+  print_footer "Translation extraction complete" "${start_time}"
+}
+
+main "$@"
