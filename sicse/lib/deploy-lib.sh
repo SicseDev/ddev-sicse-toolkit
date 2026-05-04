@@ -130,7 +130,7 @@ deploy_code_sync() {
     --delete \
     --force \
     --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-    --exclude-from=config/build/rsync.code.exclude.txt; then
+    --exclude-from=/mnt/ddev_config/sicse/rsync-exclude.txt; then
 
     drush "@${environment}" site:ssh \
       'chmod 0755 vendor/bin/drush vendor/bin/drush.php vendor/drush/drush/drush'

@@ -16,5 +16,6 @@ project_files:
   - commands/web/translations-extract
   - sicse/lib/common.sh
   - sicse/lib/deploy-lib.sh
+  - sicse/rsync-exclude.txt
 
 ddev_version_constraint: '>= v1.24.10'
