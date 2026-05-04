@@ -14,7 +14,7 @@ project_files:
   - commands/web/theme-update
   - commands/web/theme-watch
   - commands/web/translations-extract
-  - lib/common.sh
-  - lib/deploy-lib.sh
+  - sicse/lib/common.sh
+  - sicse/lib/deploy-lib.sh
 
 ddev_version_constraint: '>= v1.24.10'

@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-source /mnt/ddev_config/lib/common.sh
+source /mnt/ddev_config/sicse/lib/common.sh
 
 POT_FILE="${WEB_ROOT}/web/general.pot"
 MODULE=""

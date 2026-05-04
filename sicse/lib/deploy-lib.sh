@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Deploy helper library. Source in deploy-acc and deploy-prod:
-#   source /mnt/ddev_config/lib/deploy-lib.sh
+#   source /mnt/ddev_config/sicse/lib/deploy-lib.sh
 #
 # Note: set -euo pipefail is intentionally omitted here. Error mode is
 # controlled by the sourcing script, not the library.
 
-source /mnt/ddev_config/lib/common.sh
+source /mnt/ddev_config/sicse/lib/common.sh
 
 # Log deployment activity to a monthly log file.
 # Usage: log_deployment environment action status

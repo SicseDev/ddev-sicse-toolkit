@@ -7,8 +7,8 @@
 
 set -euo pipefail
 
-# shellcheck source=../../lib/common.sh
-source "${DDEV_APPROOT}/.ddev/lib/common.sh"
+# shellcheck source=../../sicse/lib/common.sh
+source "${DDEV_APPROOT}/.ddev/sicse/lib/common.sh"
 
 USERNAME="${1:-}"
 

@@ -10,7 +10,7 @@
 # end so that a single bad theme does not skip the remaining ones.
 set -uo pipefail
 
-source /mnt/ddev_config/lib/common.sh
+source /mnt/ddev_config/sicse/lib/common.sh
 
 check_npm
 

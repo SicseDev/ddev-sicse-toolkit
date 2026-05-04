@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-source /mnt/ddev_config/lib/common.sh
+source /mnt/ddev_config/sicse/lib/common.sh
 
 # Parse environment argument and normalise to @alias form.
 ENVIRONMENT="${1:-@self}"

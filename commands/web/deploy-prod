@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-source /mnt/ddev_config/lib/deploy-lib.sh
+source /mnt/ddev_config/sicse/lib/deploy-lib.sh
 
 print_header "Deploying to production environment"
 print_warning "WARNING: This will deploy to PRODUCTION!"

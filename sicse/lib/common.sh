@@ -2,10 +2,10 @@
 # Shared utilities for DDEV commands.
 #
 # Source at the top of each web-container command:
-#   source /mnt/ddev_config/lib/common.sh
+#   source /mnt/ddev_config/sicse/lib/common.sh
 #
 # Source at the top of each host command:
-#   source "${DDEV_APPROOT}/.ddev/lib/common.sh"
+#   source "${DDEV_APPROOT}/.ddev/sicse/lib/common.sh"
 
 # --- Color codes ---
 RED='\033[0;31m'
