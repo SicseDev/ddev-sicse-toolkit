@@ -17,6 +17,10 @@ NC='\033[0m'
 # --- Path constants ---
 WEB_ROOT="/var/www/html"
 COMMANDS_DIR="/mnt/ddev_config/commands/web"
+# Seed database: committed to version control, imported by ddev init-dev.
+DB_SEED_FILE="${WEB_ROOT}/database/seed/database.sql"
+# Exports directory: deployment safety-net dumps, not committed.
+DB_EXPORTS_DIR="${WEB_ROOT}/database/exports"
 
 # --- Output helpers ---
 

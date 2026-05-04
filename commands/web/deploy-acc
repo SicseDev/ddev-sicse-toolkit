@@ -29,7 +29,7 @@ log_deployment "acc" "deploy-acc" "started"
 print_step 1 "Synchronising production database to acceptance"
 log_deployment "acc" "database:sync-from-prod" "started"
 
-BACKUP_FILE="${WEB_ROOT}/database_exports/${DDEV_SITENAME}_prod_${TIMESTAMP}.sql"
+BACKUP_FILE="${DB_EXPORTS_DIR}/${DDEV_SITENAME}_prod_${TIMESTAMP}.sql"
 
 if deploy_database_dump "acc" "prod" "${BACKUP_FILE}"; then
   print_info "  Importing dump into @acc..."

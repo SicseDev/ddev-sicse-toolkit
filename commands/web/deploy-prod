@@ -39,7 +39,7 @@ log_deployment "prod" "deploy-prod" "started"
 print_step 1 "Creating pre-deployment database backup"
 log_deployment "prod" "backup:pre-deployment" "started"
 
-BACKUP_FILE="${WEB_ROOT}/database_exports/${DDEV_SITENAME}_prod_pre_${TIMESTAMP}.sql"
+BACKUP_FILE="${DB_EXPORTS_DIR}/${DDEV_SITENAME}_prod_pre_${TIMESTAMP}.sql"
 
 if deploy_database_dump "prod" "prod" "${BACKUP_FILE}"; then
   print_success "Pre-deployment backup saved"
@@ -67,7 +67,7 @@ log_deployment "prod" "database:export-dev" "started"
 
 if "${COMMANDS_DIR}/database-export-prod"; then
   log_deployment "prod" "database:export-dev" \
-    "success - config/build/database.sql"
+    "success - ${DB_SEED_FILE}"
 else
   print_warning "Development database snapshot creation failed (non-fatal)"
   log_deployment "prod" "database:export-dev" "failed"
@@ -79,4 +79,4 @@ print_footer "Production deployment complete" "${START_TIME}"
 echo ""
 print_info "📋 Summary:"
 print_detail "- Pre-deployment backup" "${BACKUP_FILE}"
-print_detail "- Development database" "config/build/database.sql"
+print_detail "- Development database" "${DB_SEED_FILE}"
