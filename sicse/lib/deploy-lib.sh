@@ -8,6 +8,12 @@
 source /mnt/ddev_config/sicse/lib/common.sh
 
 # Log deployment activity to a monthly log file.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#   action      - Action name to include in the log entry.
+#   status      - Status string to include in the log entry.
+#
 # Usage: log_deployment environment action status
 log_deployment() {
   local environment="${1}"
@@ -21,10 +27,21 @@ log_deployment() {
   echo "[$(date -Iseconds)] ${action}: ${status}" >> "${log_file}"
 }
 
-# Create a database dump from a remote alias, verify its integrity, and log
-# the result. Extra arguments are forwarded to drush sql:dump.
+# Create a full database dump from a remote alias, verify its
+# integrity, and log the result. This dump includes all tables, such
+# as cache, session, and watchdog log tables. To create a lean seed
+# dump that omits those volatile tables, use the database-export-prod
+# command instead, which passes --structure-tables-key=common to
+# drush sql:dump. Extra arguments are forwarded to drush sql:dump.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#   alias       - Drush remote alias to dump from.
+#   dest_file   - Absolute path for the output SQL file.
+#   [...]       - Extra arguments forwarded to drush sql:dump.
+#
+# Returns: 0 on success, 1 on failure (dest_file removed on failure).
 # Usage: deploy_database_dump environment alias dest_file [extra_drush_args...]
-# Returns 0 on success, 1 on failure (dest_file removed on failure).
 deploy_database_dump() {
   local environment="${1}"
   local alias="${2}"
@@ -50,6 +67,11 @@ deploy_database_dump() {
 }
 
 # Install Composer dependencies without dev packages.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_composer_install environment
 deploy_composer_install() {
   local environment="${1}"
@@ -68,6 +90,14 @@ deploy_composer_install() {
 }
 
 # Build theme assets via the theme-build command.
+# Note: delegates to the theme-build web command via COMMANDS_DIR. If
+# that command is ever renamed or moved, this function must be updated
+# too.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_theme_build environment
 deploy_theme_build() {
   local environment="${1}"
@@ -86,6 +116,11 @@ deploy_theme_build() {
 }
 
 # Enable maintenance mode and rebuild cache on the remote environment.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_maintenance_enable environment
 deploy_maintenance_enable() {
   local environment="${1}"
@@ -105,6 +140,11 @@ deploy_maintenance_enable() {
 }
 
 # Disable maintenance mode, rebuild cache, and warm the page cache.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_maintenance_disable environment
 deploy_maintenance_disable() {
   local environment="${1}"
@@ -125,17 +165,31 @@ deploy_maintenance_disable() {
 }
 
 # Rsync code to the remote environment, then make Drush executable.
+# Requires the rsync exclude file at ${RSYNC_EXCLUDE_FILE} to be
+# present; returns 1 immediately if it is missing.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_code_sync environment
 deploy_code_sync() {
   local environment="${1}"
 
   log_deployment "${environment}" "code:sync" "started"
 
+  if [[ ! -f "${RSYNC_EXCLUDE_FILE}" ]]; then
+    print_error "Rsync exclude file not found: ${RSYNC_EXCLUDE_FILE}"
+    log_deployment "${environment}" "code:sync" \
+      "failed - exclude file not found: ${RSYNC_EXCLUDE_FILE}"
+    return 1
+  fi
+
   if drush rsync -y "@self":../ "@${environment}":../ -- \
     --delete \
     --force \
     --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-    --exclude-from=/mnt/ddev_config/sicse/rsync-exclude.txt; then
+    --exclude-from="${RSYNC_EXCLUDE_FILE}"; then
 
     drush "@${environment}" site:ssh \
       'chmod 0755 vendor/bin/drush vendor/bin/drush.php vendor/drush/drush/drush'
@@ -151,8 +205,14 @@ deploy_code_sync() {
 }
 
 # Run configuration synchronization on the remote environment.
-# Note: delegates to the config-sync web command via COMMANDS_DIR. If that
-# command is ever renamed or moved, this function must be updated too.
+# Note: delegates to the config-sync web command via COMMANDS_DIR. If
+# that command is ever renamed or moved, this function must be updated
+# too.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_config_sync environment
 deploy_config_sync() {
   local environment="${1}"
@@ -170,9 +230,14 @@ deploy_config_sync() {
 }
 
 # Orchestrate all standard deployment steps.
+#
+# Arguments:
+#   environment - Deployment environment identifier (e.g., acc, prod).
+#   step_offset - Starting step number; allows callers to continue
+#                 their own numbering sequence (default: 1).
+#
+# Returns: 0 on success, 1 on failure.
 # Usage: deploy_execute environment step_offset
-# step_offset: the step number to start at (allows caller to continue its own
-#              sequence, e.g. deploy-prod passes 2 after its step 1).
 deploy_execute() {
   local environment="${1}"
   local step="${2:-1}"

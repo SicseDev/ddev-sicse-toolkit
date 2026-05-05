@@ -21,6 +21,8 @@ COMMANDS_DIR="/mnt/ddev_config/commands/web"
 DB_SEED_FILE="${WEB_ROOT}/database/seed/database.sql"
 # Exports directory: deployment safety-net dumps, not committed.
 DB_EXPORTS_DIR="${WEB_ROOT}/database/exports"
+# Rsync exclude file used by deploy_code_sync.
+RSYNC_EXCLUDE_FILE="/mnt/ddev_config/sicse/rsync-exclude.txt"
 
 # --- Output helpers ---
 
