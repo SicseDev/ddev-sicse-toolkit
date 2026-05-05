@@ -15,6 +15,7 @@ MODULE=""
 THEME=""
 LANGUAGE="nl"
 
+# Ensure temporary files are cleaned up on exit, even if the script fails.
 cleanup() {
   rm -f "${POT_FILE}" 2>/dev/null || true
 }
@@ -208,4 +209,10 @@ main() {
   print_footer "Translation extraction complete" "${start_time}"
 }
 
-main "$@"
+# Execute main() only when this script is run directly, not when it is sourced.
+# When executed, BASH_SOURCE[0] equals $0; when sourced, they differ. This guard
+# is what allows unit tests to source the file and call individual functions
+# without triggering main().
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
