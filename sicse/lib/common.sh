@@ -25,37 +25,44 @@ DB_EXPORTS_DIR="${WEB_ROOT}/database/exports"
 # --- Output helpers ---
 
 # Print the opening banner: === Title ===
+# Usage: print_header "Title"
 print_header() {
   echo -e "${BLUE}=== ${1} ===${NC}"
 }
 
 # Print a numbered step line: Step N: Description...
+# Usage: print_step 1 "Description"
 print_step() {
   echo -e "${BLUE}Step ${1}: ${2}...${NC}"
 }
 
 # Print a green success tick: ✓ Message
+# Usage: print_success "Message"
 print_success() {
   echo -e "${GREEN}✓ ${1}${NC}"
 }
 
 # Print a yellow warning: ⚠ Message
+# Usage: print_warning "Message"
 print_warning() {
   echo -e "${YELLOW}⚠ ${1}${NC}"
 }
 
 # Print a red error line (no exit): ✗ Error: Message
+# Usage: print_error "Message"
 print_error() {
   echo -e "${RED}✗ Error: ${1}${NC}"
 }
 
 # Print a red error line and exit 1: ✗ Error: Message
+# Usage: fail "Message"
 fail() {
   echo -e "${RED}✗ Error: ${1}${NC}"
   exit 1
 }
 
 # Print a plain blue informational message.
+# Usage: print_info "Message"
 print_info() {
   echo -e "${BLUE}${1}${NC}"
 }
@@ -67,6 +74,7 @@ print_detail() {
 }
 
 # Print a blue horizontal separator (40 equals signs).
+# Usage: print_separator
 print_separator() {
   echo -e "${BLUE}========================================${NC}"
 }
@@ -116,21 +124,25 @@ check_command() {
 }
 
 # Verify Composer is available.
+# Usage: check_composer
 check_composer() {
   check_command composer
 }
 
 # Verify Drush is available.
+# Usage: check_drush
 check_drush() {
   check_command drush
 }
 
 # Verify npm is available.
+# Usage: check_npm
 check_npm() {
   check_command npm
 }
 
 # Verify the SSH agent has loaded keys.
+# Usage: check_ssh_agent
 check_ssh_agent() {
   if ! ssh-add -l &> /dev/null; then
     fail "No SSH keys available. Add your SSH key with 'ddev auth ssh'."

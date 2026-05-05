@@ -50,6 +50,7 @@ deploy_database_dump() {
 }
 
 # Install Composer dependencies without dev packages.
+# Usage: deploy_composer_install environment
 deploy_composer_install() {
   local environment="${1}"
 
@@ -67,6 +68,7 @@ deploy_composer_install() {
 }
 
 # Build theme assets via the theme-build command.
+# Usage: deploy_theme_build environment
 deploy_theme_build() {
   local environment="${1}"
 
@@ -84,6 +86,7 @@ deploy_theme_build() {
 }
 
 # Enable maintenance mode and rebuild cache on the remote environment.
+# Usage: deploy_maintenance_enable environment
 deploy_maintenance_enable() {
   local environment="${1}"
 
@@ -102,6 +105,7 @@ deploy_maintenance_enable() {
 }
 
 # Disable maintenance mode, rebuild cache, and warm the page cache.
+# Usage: deploy_maintenance_disable environment
 deploy_maintenance_disable() {
   local environment="${1}"
 
@@ -121,6 +125,7 @@ deploy_maintenance_disable() {
 }
 
 # Rsync code to the remote environment, then make Drush executable.
+# Usage: deploy_code_sync environment
 deploy_code_sync() {
   local environment="${1}"
 
@@ -148,6 +153,7 @@ deploy_code_sync() {
 # Run configuration synchronization on the remote environment.
 # Note: delegates to the config-sync web command via COMMANDS_DIR. If that
 # command is ever renamed or moved, this function must be updated too.
+# Usage: deploy_config_sync environment
 deploy_config_sync() {
   local environment="${1}"
 
