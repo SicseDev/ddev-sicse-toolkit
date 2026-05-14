@@ -189,7 +189,9 @@ teardown() {
 }
 
 @test "check_composer: fails when composer is not in PATH" {
-  run check_composer
+  # Run in a subshell with a restricted PATH so that a system-installed
+  # composer binary (common on CI runners) does not interfere.
+  run bash -c "PATH='${STUBS_DIR}'; source '${DIR}/sicse/lib/common.sh'; check_composer"
   assert_failure
   assert_output --partial "composer"
 }
@@ -203,7 +205,9 @@ teardown() {
 }
 
 @test "check_drush: fails when drush is not in PATH" {
-  run check_drush
+  # Run in a subshell with a restricted PATH so that a system-installed
+  # drush binary does not interfere.
+  run bash -c "PATH='${STUBS_DIR}'; source '${DIR}/sicse/lib/common.sh'; check_drush"
   assert_failure
   assert_output --partial "drush"
 }
@@ -217,7 +221,9 @@ teardown() {
 }
 
 @test "check_npm: fails when npm is not in PATH" {
-  run check_npm
+  # Run in a subshell with a restricted PATH so that a system-installed
+  # npm binary (common on CI runners) does not interfere.
+  run bash -c "PATH='${STUBS_DIR}'; source '${DIR}/sicse/lib/common.sh'; check_npm"
   assert_failure
   assert_output --partial "npm"
 }
