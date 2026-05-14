@@ -189,10 +189,9 @@ deploy_code_sync() {
     --delete \
     --force \
     --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-    --exclude-from="${RSYNC_EXCLUDE_FILE}"; then
-
+    --exclude-from="${RSYNC_EXCLUDE_FILE}" && \
     drush "@${environment}" site:ssh \
-      'chmod 0755 vendor/bin/drush vendor/bin/drush.php vendor/drush/drush/drush'
+      'chmod 0755 vendor/bin/drush vendor/bin/drush.php vendor/drush/drush/drush'; then
 
     print_success "Code synced"
     log_deployment "${environment}" "code:sync" "success"
