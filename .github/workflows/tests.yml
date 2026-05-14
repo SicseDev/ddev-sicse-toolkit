@@ -27,7 +27,40 @@ permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Unit tests
+  #
+  # These tests cover all unit tests and require only bats and its helper
+  # libraries. No DDEV environment is needed, so this job is fast and acts as a
+  # first gate before the slower integration job starts.
+  # ---------------------------------------------------------------------------
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats and helper libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bats bats-assert bats-file bats-support
+
+      - name: Run unit tests
+        run: bats ./tests/unit/
+
+  # ---------------------------------------------------------------------------
+  # Integration tests
+  #
+  # These tests install the add-on into a real DDEV project and verify that all
+  # command files are installed, executable, and registered by DDEV. Only the
+  # integration suite is run here; unit tests are intentionally kept in their
+  # own job above so they act as a fast first gate without DDEV spin-up
+  # overhead. The integration tests run against both the current stable DDEV
+  # release and the HEAD build to catch regressions early.
+  # ---------------------------------------------------------------------------
   tests:
+    needs: unit-tests
     strategy:
       matrix:
         ddev_version: [stable, HEAD]
@@ -40,6 +73,7 @@ jobs:
         with:
           ddev_version: ${{ matrix.ddev_version }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          debug_enabled: ${{ github.event.inputs.debug_enabled }}
-          addon_repository: ${{ env.GITHUB_REPOSITORY }}
-          addon_ref: ${{ env.GITHUB_REF }}
+          debug_enabled: ${{ inputs.debug_enabled }}
+          addon_repository: ${{ github.repository }}
+          addon_ref: ${{ github.ref }}
+          test_command: bats ./tests/integration/
