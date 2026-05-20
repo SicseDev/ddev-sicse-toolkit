@@ -19,19 +19,19 @@
 # Homebrew. Searches the following locations in order:
 #   1. $BATS_LIB_PATH  (override)
 #   2. /usr/lib/bats   (Debian/Ubuntu apt)
-#   3. /usr/local/lib/bats  (Homebrew macOS Intel)
-#   4. $(brew --prefix)/lib/bats  (Homebrew Apple Silicon / Linux)
+#   3. /usr/local/lib  (Homebrew macOS Intel)
+#   4. $(brew --prefix)/lib  (Homebrew Apple Silicon / Linux)
 load_bats_libraries() {
   local lib_dir=""
 
   local -a candidates=(
     "${BATS_LIB_PATH:-}"
     "/usr/lib/bats"
-    "/usr/local/lib/bats"
+    "/usr/local/lib"
   )
 
   if command -v brew &>/dev/null; then
-    candidates+=("$(brew --prefix)/lib/bats")
+    candidates+=("$(brew --prefix)/lib")
   fi
 
   local dir
