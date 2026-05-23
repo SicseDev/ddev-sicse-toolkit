@@ -173,6 +173,37 @@ confirm() {
   fi
 }
 
+# Return 0 when a Drupal extension (module or theme) is enabled, 1 otherwise.
+# Produces no output and never prompts. The --no-core flag excludes Drupal core
+# extensions so that built-in modules and themes never produce a false positive.
+# Usage: is_extension_enabled "Module" "my_module"
+is_extension_enabled() {
+  local extension_type="${1}"
+  local extension_name="${2}"
+  local enabled_check
+  enabled_check=$(drush pm:list \
+    --status=enabled \
+    --type="${extension_type,,}" \
+    --filter="${extension_name}" \
+    --no-core \
+    --format=list 2>/dev/null || true)
+  [ -n "${enabled_check}" ]
+}
+
+# Check whether a Drupal extension (module or theme) is enabled. Prints a
+# warning and prompts to continue when the extension is absent from the enabled
+# list.
+# Usage: check_enabled "Module" "my_module"
+check_enabled() {
+  local extension_type="${1}"
+  local extension_name="${2}"
+  if ! is_extension_enabled "${extension_type}" "${extension_name}"; then
+    print_warning \
+      "${extension_type} '${extension_name}' does not appear to be enabled"
+    confirm "Continue anyway?"
+  fi
+}
+
 # --- File validation helpers ---
 
 # Verify a SQL dump file is non-empty and contains a mysqldump header.

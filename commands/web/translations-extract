@@ -64,22 +64,10 @@ validate_inputs() {
   if [ ! -d "${EXTENSION_DIR}" ]; then
     fail "${EXTENSION_TYPE} directory does not exist: ${EXTENSION_DIR}"
   fi
-}
 
-check_enabled() {
-  local extension_type="${1}"
-  local extension_name="${2}"
-  local enabled_check
-  enabled_check=$(drush pm:list \
-    --status=enabled \
-    --type="${extension_type,,}" \
-    --filter="${extension_name}" \
-    --no-core \
-    --format=list 2>/dev/null || true)
-
-  if [ -z "${enabled_check}" ]; then
-    print_warning "${extension_type} '${extension_name}' does not appear to be enabled"
-    confirm "Continue anyway?"
+  local info_file="${EXTENSION_DIR}/${EXTENSION_NAME}.info.yml"
+  if [ ! -f "${info_file}" ]; then
+    fail "${EXTENSION_TYPE} info file does not exist: ${info_file}"
   fi
 }
 
@@ -167,15 +155,25 @@ verify_translation_file() {
 }
 
 check_atd_module() {
-  local atd_check
-  atd_check=$(drush pm:list --status=enabled --filter="atd" --no-core \
-    --format=list 2>/dev/null || true)
+  if is_extension_enabled "Module" "atd"; then
+    return 0
+  fi
 
-  if [ -z "${atd_check}" ]; then
-    echo ""
-    print_warning "The Automatic Translation Template Discovery (ATD) module is not installed"
-    echo ""
-    cat <<INFO
+  # ATD is not installed; check whether the required discovery keys are already
+  # present in the extension's .info.yml.
+  local info_file="${EXTENSION_DIR}/${EXTENSION_NAME}.info.yml"
+  if grep -q "interface translation project:" "${info_file}" 2>/dev/null \
+     && grep -q "interface translation server pattern:" "${info_file}" 2>/dev/null; then
+    print_success \
+      "Translation discovery keys already present in ${EXTENSION_NAME}.info.yml"
+    return 0
+  fi
+
+  echo ""
+  print_warning \
+    "The Automatic Translation Template Discovery (ATD) module is not installed"
+  echo ""
+  cat <<INFO
 The ATD module makes custom translations automatically discoverable by Drupal.
 Without it, add the following to ${EXTENSION_NAME}.info.yml:
 
@@ -184,9 +182,8 @@ Without it, add the following to ${EXTENSION_NAME}.info.yml:
 
 More info: https://www.drupal.org/project/atd
 INFO
-    echo ""
-    read -r -p "Press Enter to continue..."
-  fi
+  echo ""
+  read -r -p "Press Enter to continue..."
 }
 
 main() {
