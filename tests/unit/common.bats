@@ -142,10 +142,20 @@ teardown() {
   assert_output --partial "Backup verified"
 }
 
+@test "verify_backup: success message contains the file path for a mysql dump" {
+  run verify_backup "${TESTDATA_DIR}/valid-mysql-dump.sql"
+  assert_output --partial "${TESTDATA_DIR}/valid-mysql-dump.sql"
+}
+
 @test "verify_backup: succeeds for the repository valid-mariadb-dump fixture" {
   run verify_backup "${TESTDATA_DIR}/valid-mariadb-dump.sql"
   assert_success
   assert_output --partial "Backup verified"
+}
+
+@test "verify_backup: success message contains the file path for a mariadb dump" {
+  run verify_backup "${TESTDATA_DIR}/valid-mariadb-dump.sql"
+  assert_output --partial "${TESTDATA_DIR}/valid-mariadb-dump.sql"
 }
 
 # ==============================================================================
@@ -348,6 +358,24 @@ SCRIPT
   assert_output --partial "Aborted"
 }
 
+@test "confirm: exits 0 without continuing when 'N' is entered" {
+  local script
+  script="$(setup_confirm_script)"
+
+  run bash -c "echo 'N' | '${script}'"
+  assert_success
+  refute_output --partial "after_confirm"
+}
+
+@test "confirm: exits 0 without continuing on empty input" {
+  local script
+  script="$(setup_confirm_script)"
+
+  run bash -c "echo '' | '${script}'"
+  assert_success
+  refute_output --partial "after_confirm"
+}
+
 # ==============================================================================
 # countdown
 #
@@ -361,6 +389,17 @@ SCRIPT
 
   run countdown 2
   assert_success
+  assert_output --partial "Starting in 2"
+  assert_output --partial "Starting in 1"
+}
+
+@test "countdown: emits exactly one line per second" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/sleep"
+  chmod +x "${STUBS_DIR}/sleep"
+
+  run countdown 3
+  assert_success
+  assert_output --partial "Starting in 3"
   assert_output --partial "Starting in 2"
   assert_output --partial "Starting in 1"
 }
@@ -433,6 +472,11 @@ SCRIPT
 @test "print_error: output contains the error symbol" {
   run print_error "Something went wrong"
   assert_output --partial "✗"
+}
+
+@test "print_error: output contains the Error: prefix" {
+  run print_error "Something went wrong"
+  assert_output --partial "Error:"
 }
 
 # ==============================================================================
@@ -575,4 +619,164 @@ SCRIPT
   run print_footer "Build complete" "${start_time}"
   # The footer always ends with "Xs ===" where X is the elapsed seconds.
   assert_output --partial "s ==="
+}
+
+@test "print_footer: output contains === delimiters" {
+  local start_time
+  start_time=$(date +%s)
+
+  run print_footer "Build complete" "${start_time}"
+  assert_output --partial "==="
+}
+
+# ==============================================================================
+# is_extension_enabled
+#
+# Pure predicate: returns 0 when drush pm:list reports the extension as enabled,
+# 1 otherwise. Produces no output and never prompts. Used internally by
+# check_enabled and by check_atd_module in translations-extract.
+# ==============================================================================
+
+@test "is_extension_enabled: returns 0 when a module is enabled" {
+  printf '#!/usr/bin/env bash\necho "my_module"\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Module" "my_module"
+  assert_success
+}
+
+@test "is_extension_enabled: returns 1 when a module is not enabled" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Module" "my_module"
+  assert_failure
+}
+
+@test "is_extension_enabled: returns 0 when a theme is enabled" {
+  printf '#!/usr/bin/env bash\necho "my_theme"\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Theme" "my_theme"
+  assert_success
+}
+
+@test "is_extension_enabled: returns 1 when a theme is not enabled" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Theme" "my_theme"
+  assert_failure
+}
+
+@test "is_extension_enabled: produces no output when enabled" {
+  printf '#!/usr/bin/env bash\necho "my_module"\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Module" "my_module"
+  assert_output ""
+}
+
+@test "is_extension_enabled: produces no output when not enabled" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run is_extension_enabled "Module" "my_module"
+  assert_output ""
+}
+
+# ==============================================================================
+# check_enabled
+#
+# Checks whether a Drupal extension (module or theme) is enabled by querying
+# drush pm:list. Prints a warning and prompts to continue when the extension is
+# absent. Tests stub drush to avoid needing a real Drupal installation. When the
+# extension is absent, check_enabled calls confirm(), which would block on
+# stdin; override confirm() with a no-op so tests stay non-interactive.
+# ==============================================================================
+
+@test "check_enabled: warns when a module is not in the enabled list" {
+  # Default drush stub exits 0 with no output → module not found.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # No-op confirm() prevents blocking on stdin.
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Module" "my_module"
+  assert_output --partial "does not appear to be enabled"
+}
+
+@test "check_enabled: warning message for a missing module includes the module type" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Module" "my_module"
+  assert_output --partial "Module"
+}
+
+@test "check_enabled: warning message for a missing module includes the module name" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Module" "my_module"
+  assert_output --partial "my_module"
+}
+
+@test "check_enabled: succeeds silently when a module is enabled" {
+  printf '#!/usr/bin/env bash\necho "my_module"\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run check_enabled "Module" "my_module"
+  assert_success
+  refute_output --partial "does not appear to be enabled"
+}
+
+@test "check_enabled: succeeds silently when a theme is enabled" {
+  printf '#!/usr/bin/env bash\necho "my_theme"\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  run check_enabled "Theme" "my_theme"
+  assert_success
+  refute_output --partial "does not appear to be enabled"
+}
+
+@test "check_enabled: warns when a theme is not in the enabled list" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Theme" "my_theme"
+  assert_output --partial "does not appear to be enabled"
+}
+
+@test "check_enabled: warning message for a missing theme includes the theme type" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Theme" "my_theme"
+  assert_output --partial "Theme"
+}
+
+@test "check_enabled: warning message for a missing theme includes the theme name" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUBS_DIR}/drush"
+  chmod +x "${STUBS_DIR}/drush"
+
+  # shellcheck disable=SC2317
+  confirm() { return 0; }
+
+  run check_enabled "Theme" "my_theme"
+  assert_output --partial "my_theme"
 }
