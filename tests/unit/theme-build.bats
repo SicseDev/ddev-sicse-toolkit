@@ -23,9 +23,9 @@
 # Run the full unit suite:
 #   bats ./tests/unit/
 
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Setup and teardown
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 setup() {
   set -eu -o pipefail
@@ -152,7 +152,7 @@ STUB
 # Orchestrates discovery and building of all or a specific theme. The primary
 # specification is that a failing theme must not abort the build of the
 # remaining themes, and all failures are reported together at the end.
-# ===========================================================================
+# ==============================================================================
 
 @test "main: fails when the custom themes directory does not exist" {
   # WEB_ROOT exists, but the themes subdirectory does not.
