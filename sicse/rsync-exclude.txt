@@ -1,3 +1,4 @@
+## #ddev-generated: If you want to edit and own this file, remove this line.
 # Prevent the Let's Encrypt data being deleted.
 /web/.well-known/
 
