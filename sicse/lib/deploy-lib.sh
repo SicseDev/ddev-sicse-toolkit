@@ -27,12 +27,12 @@ log_deployment() {
   echo "[$(date -Iseconds)] ${action}: ${status}" >> "${log_file}"
 }
 
-# Create a full database dump from a remote alias, verify its
-# integrity, and log the result. This dump includes all tables, such
-# as cache, session, and watchdog log tables. To create a lean seed
-# dump that omits those volatile tables, use the database-export-prod
-# command instead, which passes --structure-tables-key=common to
-# drush sql:dump. Extra arguments are forwarded to drush sql:dump.
+# Create a full database dump from a remote alias, verify its integrity, and log
+# the result. This dump includes all tables, such as cache, session, and
+# watchdog log tables. To create a lean seed dump that omits those volatile
+# tables, use the database-export-prod command instead, which passes
+# --structure-tables-key=common to drush sql:dump. Extra arguments are forwarded
+# to drush sql:dump.
 #
 # Arguments:
 #   environment - Deployment environment identifier (e.g., acc, prod).
@@ -90,9 +90,8 @@ deploy_composer_install() {
 }
 
 # Build theme assets via the theme-build command.
-# Note: delegates to the theme-build web command via COMMANDS_DIR. If
-# that command is ever renamed or moved, this function must be updated
-# too.
+# Note: delegates to the theme-build web command via COMMANDS_DIR. If that
+# command is ever renamed or moved, this function must be updated too.
 #
 # Arguments:
 #   environment - Deployment environment identifier (e.g., acc, prod).
@@ -164,9 +163,9 @@ deploy_maintenance_disable() {
   fi
 }
 
-# Rsync code to the remote environment, then make Drush executable.
-# Requires the rsync exclude file at ${RSYNC_EXCLUDE_FILE} to be
-# present; returns 1 immediately if it is missing.
+# Rsync code to the remote environment, then make Drush executable. Requires the
+# rsync exclude file at ${RSYNC_EXCLUDE_FILE} to be present; returns 1
+# immediately if it is missing.
 #
 # Arguments:
 #   environment - Deployment environment identifier (e.g., acc, prod).
@@ -204,9 +203,8 @@ deploy_code_sync() {
 }
 
 # Run configuration synchronization on the remote environment.
-# Note: delegates to the config-sync web command via COMMANDS_DIR. If
-# that command is ever renamed or moved, this function must be updated
-# too.
+# Note: delegates to the config-sync web command via COMMANDS_DIR. If that
+# command is ever renamed or moved, this function must be updated too.
 #
 # Arguments:
 #   environment - Deployment environment identifier (e.g., acc, prod).
@@ -219,6 +217,7 @@ deploy_config_sync() {
   log_deployment "${environment}" "config:sync" "started"
 
   if "${COMMANDS_DIR}/config-sync" "@${environment}"; then
+    print_success "Configuration synchronised"
     log_deployment "${environment}" "config:sync" "success"
     return 0
   else
@@ -249,7 +248,7 @@ deploy_execute() {
     log_deployment "${environment}" "deployment" "failed at step ${step}"
     return 1
   }
-  ((step++))
+  step=$(( step + 1 ))
 
   echo ""
   print_step "${step}" "Building theme assets"
@@ -257,7 +256,7 @@ deploy_execute() {
     log_deployment "${environment}" "deployment" "failed at step ${step}"
     return 1
   }
-  ((step++))
+  step=$(( step + 1 ))
 
   echo ""
   print_step "${step}" "Enabling maintenance mode"
@@ -265,7 +264,7 @@ deploy_execute() {
     log_deployment "${environment}" "deployment" "failed at step ${step}"
     return 1
   }
-  ((step++))
+  step=$(( step + 1 ))
 
   echo ""
   print_step "${step}" "Syncing code to @${environment}"
@@ -275,7 +274,7 @@ deploy_execute() {
       "failed at step ${step}, maintenance mode still active!"
     return 1
   }
-  ((step++))
+  step=$(( step + 1 ))
 
   echo ""
   print_step "${step}" "Running configuration sync"
@@ -285,7 +284,7 @@ deploy_execute() {
       "failed at step ${step}, maintenance mode still active!"
     return 1
   }
-  ((step++))
+  step=$(( step + 1 ))
 
   echo ""
   print_step "${step}" "Disabling maintenance mode"
@@ -295,5 +294,6 @@ deploy_execute() {
     return 1
   }
 
+  log_deployment "${environment}" "deployment" "completed"
   return 0
 }
