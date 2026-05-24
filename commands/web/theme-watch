@@ -26,6 +26,14 @@ find_theme_with_watch() {
   return 1
 }
 
+# Return 0 when the package.json in the given directory declares a "watch" npm
+# script, 1 otherwise.
+# Usage: has_watch_script /path/to/theme
+has_watch_script() {
+  local theme_dir="${1}"
+  grep -q '"watch"' "${theme_dir}/package.json"
+}
+
 main() {
   check_npm
 
@@ -50,17 +58,15 @@ main() {
     fail "Theme directory does not exist: ${theme_dir}"
   fi
 
-  cd "${theme_dir}" || fail "Cannot access theme directory: ${theme_dir}"
-
-  if [ ! -f "package.json" ]; then
+  if [ ! -f "${theme_dir}/package.json" ]; then
     fail "package.json not found in ${theme_dir}"
   fi
 
-  if ! npm run 2>/dev/null | grep -q "watch"; then
-    print_warning "'watch' script not found in package.json. Available scripts:"
-    npm run
-    exit 1
+  if ! has_watch_script "${theme_dir}"; then
+    fail "'watch' script not found in ${theme_dir}/package.json"
   fi
+
+  cd "${theme_dir}" || fail "Cannot access theme directory: ${theme_dir}"
 
   print_success "Watching theme: ${theme}"
   print_detail "Directory" "${theme_dir}"
